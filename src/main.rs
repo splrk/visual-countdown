@@ -4,7 +4,7 @@ use std::fs;
 
 fn main() {
     let mut args: Args = env::args();
-    args.next();
+    args.skip();
 
     let config = Config::new(args);
 
