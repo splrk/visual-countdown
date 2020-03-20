@@ -1,12 +1,17 @@
 use std::{env, env::Args};
 use std::string::String;
 use std::fs;
+use std::process;
+use std::num::ParseIntError;
 
 fn main() {
     let mut args: Args = env::args();
-    args.skip();
+    args.next();
 
-    let config = Config::new(args);
+    let config = Config::new(args).unwrap_or_else(|err| {
+        println!("Invalid argurments: {}", err);
+        process::exit(1);
+    });
 
     if config.filename.is_some() {
         println!("{}", config.filename.as_ref().unwrap());
@@ -20,9 +25,8 @@ struct Config {
 }
 
 impl Config {
-    fn new(mut args: Args) -> Config {
+    fn new(mut args: Args) -> Result<Config, &'static str> {
         let mut time_str = String::new();
-        let mut filename: Option<String> = None;
 
         loop {
             let arg = args.next();
@@ -32,18 +36,46 @@ impl Config {
 
             let arg = arg.unwrap();
             if arg == "-f" {
-                let path = args.next().expect("Must provide a filename").clone();
-                filename = Some(path.clone());
-                
-                time_str = fs::read_to_string(path).expect("Unable to read file");
-                time_str = String::from(time_str.trim());
+                return read_file_flag(&mut args);
             } else {
                 time_str = arg;
             }
         }
 
-        let seconds: u32 = time_str.parse().expect("Can only take an integer");
+        let seconds = parse_int(&time_str);
 
-        Config { filename, seconds }
+        if seconds.is_err() {
+            return Err(seconds.err().unwrap());
+        }
+        let seconds = seconds.unwrap();
+
+        Ok(Config { filename: None, seconds })
     }
+}
+
+fn read_file_flag(args: &mut Args) -> Result<Config, &'static str> {
+    let path = args.next();
+    
+    if path.is_none() {
+        return Err("Must Provide a filename with the '-f' flag");
+    }
+    let path = path.unwrap();
+    let filename = Some(path.clone());
+    
+    let time_str = fs::read_to_string(path).unwrap();
+    let seconds = parse_int(time_str.trim());
+    if seconds.is_err() {
+        return Err(seconds.err().unwrap());
+    }
+    let seconds = seconds.unwrap();
+
+    Ok(Config { seconds, filename })
+}
+
+fn parse_int(input_str: &str) -> Result<u32, &'static str> {
+    let seconds: Result<u32, ParseIntError> = input_str.parse();
+    if seconds.is_err() {
+        return Err("Must provide a positive integer");
+    }
+    Ok(seconds.unwrap())
 }
