@@ -3,6 +3,8 @@ use std::string::String;
 use std::fs;
 use std::process;
 use std::error::Error;
+use std::thread;
+use std::time::{SystemTime, Duration};
 
 fn main() {
     let mut args: Args = env::args();
@@ -22,12 +24,29 @@ fn run(config: Config) -> Result<(), Box<dyn Error>> {
     if let Some(filename) = config.filename {
         println!("Reading from {}", filename);
     }
-    println!("{:?}", config.seconds);
+
+    let total_time = Duration::new(config.seconds, 0);
+    println!("{:?}", total_time);
+    
+
+    let start = SystemTime::now();
+    for i in 0..config.seconds {
+        let seconds_left = config.seconds - i;
+        let time_left = Duration::new(seconds_left, 0);
+        println!("{}", String::from("#").repeat(seconds_left as usize));
+
+        let wait_time = Duration::new(i + 1, 0);
+        let elapsed = start.elapsed()?;
+        if elapsed < wait_time {
+            thread::sleep(wait_time - start.elapsed()?);
+        }
+    }
+
     Ok(())
 }
 
 struct Config {
-    seconds: u32,
+    seconds: u64,
     filename: Option<String>,
 }
 
@@ -69,6 +88,6 @@ fn read_file_flag(args: &mut Args) -> Result<Config, Box<dyn Error>> {
     Ok(Config { seconds, filename })
 }
 
-fn parse_int(input_str: &str) -> Result<u32, Box<dyn Error>> {
+fn parse_int(input_str: &str) -> Result<u64, Box<dyn Error>> {
     Ok(input_str.parse()?)
 }
