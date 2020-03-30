@@ -1,9 +1,10 @@
-use std::env::Args;
 use std::string::String;
 use std::fs;
 use std::error::Error;
 use std::thread;
 use std::time::{SystemTime, Duration};
+use std::io;
+use std::io::ErrorKind;
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     if let Some(filename) = config.filename {
@@ -35,8 +36,9 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(mut args: Args) -> Result<Config, Box<dyn Error>> {
-        let mut time_str = String::new();
+    pub fn new(args: Vec<String>) -> Result<Config, Box<dyn Error>> {
+        let mut time_str = String::from("0");
+        let mut args = args.iter();
 
         loop {
             let arg = args.next();
@@ -46,9 +48,9 @@ impl Config {
 
             let arg = arg.unwrap();
             if arg == "-f" {
-                return read_file_flag(&mut args);
+                return read_file_flag(args.next());
             } else {
-                time_str = arg;
+                time_str = arg.clone();
             }
         }
 
@@ -58,20 +60,37 @@ impl Config {
     }
 }
 
-fn read_file_flag(args: &mut Args) -> Result<Config, Box<dyn Error>> {
-    let path = match args.next() {
-        Some(p) => p,
-        None => String::new(),
-    };
+fn read_file_flag(filename: Option<&String>) -> Result<Config, Box<dyn Error>> {
+    let result: Result<Config, Box<dyn Error>>;
 
-    let filename = Some(path.clone());
+    if let Some(path) = filename {
+      let filename = Some(path.clone());
     
-    let time_str = fs::read_to_string(path)?;
-    let seconds = parse_int(time_str.trim())?;
+      let time_str = fs::read_to_string(path)?;
+      let seconds = parse_int(time_str.trim())?;
 
-    Ok(Config { seconds, filename })
+      result = Ok(Config { seconds, filename })
+    } else {
+        result = Err(Box::new(io::Error::new(ErrorKind::NotFound, "Filename must not be empty")))
+    }
+
+    result
 }
 
 fn parse_int(input_str: &str) -> Result<u64, Box<dyn Error>> {
     Ok(input_str.parse()?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn read_single_number() {
+        let args: Vec<String> = vec![String::from("5")];
+        let config = Config::new(args).unwrap();
+        assert_eq!(config.seconds, 5);
+
+        assert_eq!(config.filename, None);
+    }
 }

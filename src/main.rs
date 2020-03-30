@@ -1,11 +1,11 @@
-use std::{env, env::Args};
+use std::env;
+use std::string::String;
 use std::process;
 
 use timetimer::Config;
 
 fn main() {
-    let mut args: Args = env::args();
-    args.next();
+    let args: Vec<String> = env::args().skip(1).collect();
 
     let config = Config::new(args).unwrap_or_else(|e| {
         println!("Invalid argurments: {}", e);
